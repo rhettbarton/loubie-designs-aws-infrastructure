@@ -11,14 +11,32 @@ export class LoubieDesignsInfrastructureStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    const environment = this.node.tryGetContext('environment') || 'dev';
+
+    const getAllowedOrigins = (env: string): string[] => {
+      const origins = {
+        dev: [
+          'http://localhost:5173',
+          'http://localhost:3000',
+        ],
+        prod: [
+          'https://www.loubie-designs.com',
+          'https://loubie-designs.com',
+          'https://stage.d2qtl7pvprqis4.amplifyapp.com',
+        ]
+      };
+      return origins[env as keyof typeof origins] || origins.dev;
+    };
+
+
     // S3 Bucket for storing photos
     const photoBucket = new s3.Bucket(this, 'LoubieDesignsPhotoBucket', {
-      bucketName: `loubie-designs-photos-${this.account}-${this.region}`,
+      bucketName: `loubie-designs-photos-${this.account}-${this.region}-${environment}`,
       publicReadAccess: false,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       cors: [
         {
-          allowedOrigins: ['*'], // Restrict this to your domain in production
+          allowedOrigins: getAllowedOrigins(environment),
           allowedMethods: [s3.HttpMethods.GET],
           allowedHeaders: ['*'],
           maxAge: 3600,
@@ -67,7 +85,7 @@ export class LoubieDesignsInfrastructureStack extends cdk.Stack {
 
     // DynamoDB table for photo metadata
     const photoMetadataTable = new dynamodb.Table(this, 'PhotoMetadataTable', {
-      tableName: `loubie-designs-photo-metadata-${this.account}-${this.region}`,
+      tableName: `loubie-designs-photo-metadata-${this.account}-${this.region}-${environment}`,
       partitionKey: {
         name: 'id',
         type: dynamodb.AttributeType.STRING,
