@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
-import { LoubieDesignsInfrastructureStack } from '../lib/infrastructure-stack';
+import { LoubieDesignsInfrastructureStack } from '../lib/loubie-designs-aws-infrastructure-stack';
 
 const app = new cdk.App();
 
