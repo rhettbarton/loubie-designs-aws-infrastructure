@@ -11,32 +11,14 @@ export class LoubieDesignsInfrastructureStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const environment = this.node.tryGetContext('environment') || 'dev';
-
-    const getAllowedOrigins = (env: string): string[] => {
-      const origins = {
-        dev: [
-          'http://localhost:5173',
-          'http://localhost:3000',
-        ],
-        prod: [
-          'https://www.loubie-designs.com',
-          'https://loubie-designs.com',
-          'https://stage.d2qtl7pvprqis4.amplifyapp.com',
-        ]
-      };
-      return origins[env as keyof typeof origins] || origins.dev;
-    };
-
-
     // S3 Bucket for storing photos
     const photoBucket = new s3.Bucket(this, 'LoubieDesignsPhotoBucket', {
-      bucketName: `loubie-designs-photos-${this.account}-${this.region}-${environment}`,
+      bucketName: `loubie-designs-photos-${environment}-${this.account}-${this.region}`,
       publicReadAccess: false,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       cors: [
         {
-          allowedOrigins: getAllowedOrigins(environment),
+          allowedOrigins: allowedOrigins,
           allowedMethods: [s3.HttpMethods.GET],
           allowedHeaders: ['*'],
           maxAge: 3600,
@@ -83,9 +65,30 @@ export class LoubieDesignsInfrastructureStack extends cdk.Stack {
       }
     );
 
+    // Get environment from context
+    const environment = this.node.tryGetContext('environment') || 'dev';
+
+    // Define allowed origins based on environment
+    const getAllowedOrigins = (env: string): string[] => {
+      const origins = {
+        dev: [
+          'http://localhost:5173',
+          'http://localhost:3000',
+        ],
+        prod: [
+          'https://www.loubie-designs.com',
+          'https://loubie-designs.com',
+          'https://stage.d2qtl7pvprqis4.amplifyapp.com',
+        ]
+      };
+      return origins[env as keyof typeof origins] || origins.dev;
+    };
+
+    const allowedOrigins = getAllowedOrigins(environment);
+
     // DynamoDB table for photo metadata
     const photoMetadataTable = new dynamodb.Table(this, 'PhotoMetadataTable', {
-      tableName: `loubie-designs-photo-metadata-${this.account}-${this.region}-${environment}`,
+      tableName: `loubie-designs-photo-metadata-${environment}-${this.account}-${this.region}`,
       partitionKey: {
         name: 'id',
         type: dynamodb.AttributeType.STRING,
@@ -93,43 +96,43 @@ export class LoubieDesignsInfrastructureStack extends cdk.Stack {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       pointInTimeRecovery: true,
       removalPolicy: cdk.RemovalPolicy.RETAIN, // Keep data on stack deletion
-      
-      // Global Secondary Index for category filtering
-      globalSecondaryIndexes: [
-        {
-          indexName: 'CategoryIndex',
-          partitionKey: {
-            name: 'category',
-            type: dynamodb.AttributeType.STRING,
-          },
-          sortKey: {
-            name: 'createdAt',
-            type: dynamodb.AttributeType.STRING,
-          },
-        },
-        {
-          indexName: 'FeaturedIndex',
-          partitionKey: {
-            name: 'featured',
-            type: dynamodb.AttributeType.STRING,
-          },
-          sortKey: {
-            name: 'createdAt',
-            type: dynamodb.AttributeType.STRING,
-          },
-        },
-        {
-          indexName: 'PortfolioIndex',
-          partitionKey: {
-            name: 'portfolio',
-            type: dynamodb.AttributeType.STRING,
-          },
-          sortKey: {
-            name: 'createdAt',
-            type: dynamodb.AttributeType.STRING,
-          },
-        },
-      ],
+    });
+
+    // Add Global Secondary Indexes after table creation
+    photoMetadataTable.addGlobalSecondaryIndex({
+      indexName: 'CategoryIndex',
+      partitionKey: {
+        name: 'category',
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'createdAt',
+        type: dynamodb.AttributeType.STRING,
+      },
+    });
+
+    photoMetadataTable.addGlobalSecondaryIndex({
+      indexName: 'FeaturedIndex',
+      partitionKey: {
+        name: 'featured',
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'createdAt',
+        type: dynamodb.AttributeType.STRING,
+      },
+    });
+
+    photoMetadataTable.addGlobalSecondaryIndex({
+      indexName: 'PortfolioIndex',
+      partitionKey: {
+        name: 'portfolio',
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'createdAt',
+        type: dynamodb.AttributeType.STRING,
+      },
     });
 
     // IAM role for Amplify app to access AWS resources
@@ -173,34 +176,46 @@ export class LoubieDesignsInfrastructureStack extends cdk.Stack {
     });
 
     // Output important values
+    new cdk.CfnOutput(this, 'Environment', {
+      value: environment,
+      description: 'Deployment environment',
+      exportName: `LoubieDesigns-Environment-${environment}`,
+    });
+
+    new cdk.CfnOutput(this, 'AllowedOrigins', {
+      value: allowedOrigins.join(', '),
+      description: `Allowed CORS origins for ${environment} environment`,
+      exportName: `LoubieDesigns-AllowedOrigins-${environment}`,
+    });
+
     new cdk.CfnOutput(this, 'PhotoBucketName', {
       value: photoBucket.bucketName,
       description: 'S3 bucket name for photos',
-      exportName: 'LoubieDesigns-PhotoBucketName',
+      exportName: `LoubieDesigns-PhotoBucketName-${environment}`,
     });
 
     new cdk.CfnOutput(this, 'PhotoDistributionDomain', {
       value: photoDistribution.distributionDomainName,
       description: 'CloudFront distribution domain for photos',
-      exportName: 'LoubieDesigns-PhotoCDN',
+      exportName: `LoubieDesigns-PhotoCDN-${environment}`,
     });
 
     new cdk.CfnOutput(this, 'PhotoMetadataTableName', {
       value: photoMetadataTable.tableName,
       description: 'DynamoDB table name for photo metadata',
-      exportName: 'LoubieDesigns-MetadataTableName',
+      exportName: `LoubieDesigns-MetadataTableName-${environment}`,
     });
 
     new cdk.CfnOutput(this, 'AmplifyExecutionRoleArn', {
       value: amplifyExecutionRole.roleArn,
       description: 'IAM role ARN for Amplify app',
-      exportName: 'LoubieDesigns-AmplifyRoleArn',
+      exportName: `LoubieDesigns-AmplifyRoleArn-${environment}`,
     });
 
     new cdk.CfnOutput(this, 'Region', {
       value: this.region,
       description: 'AWS region',
-      exportName: 'LoubieDesigns-Region',
+      exportName: `LoubieDesigns-Region-${environment}`,
     });
   }
 }
