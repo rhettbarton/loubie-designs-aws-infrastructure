@@ -11,6 +11,27 @@ export class LoubieDesignsInfrastructureStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    // Get environment from context
+    const environment = this.node.tryGetContext('environment') || 'dev';
+
+    // Define allowed origins based on environment
+    const getAllowedOrigins = (env: string): string[] => {
+      const origins = {
+        dev: [
+          'http://localhost:5173',
+          'http://localhost:3000',
+        ],
+        prod: [
+          'https://www.loubie-designs.com',
+          'https://loubie-designs.com',
+          'https://stage.d2qtl7pvprqis4.amplifyapp.com',
+        ]
+      };
+      return origins[env as keyof typeof origins] || origins.dev;
+    };
+
+    const allowedOrigins = getAllowedOrigins(environment);
+
     // S3 Bucket for storing photos
     const photoBucket = new s3.Bucket(this, 'LoubieDesignsPhotoBucket', {
       bucketName: `loubie-designs-photos-${environment}-${this.account}-${this.region}`,
@@ -64,27 +85,6 @@ export class LoubieDesignsInfrastructureStack extends cdk.Stack {
         comment: 'Loubie Designs Photo CDN',
       }
     );
-
-    // Get environment from context
-    const environment = this.node.tryGetContext('environment') || 'dev';
-
-    // Define allowed origins based on environment
-    const getAllowedOrigins = (env: string): string[] => {
-      const origins = {
-        dev: [
-          'http://localhost:5173',
-          'http://localhost:3000',
-        ],
-        prod: [
-          'https://www.loubie-designs.com',
-          'https://loubie-designs.com',
-          'https://stage.d2qtl7pvprqis4.amplifyapp.com',
-        ]
-      };
-      return origins[env as keyof typeof origins] || origins.dev;
-    };
-
-    const allowedOrigins = getAllowedOrigins(environment);
 
     // DynamoDB table for photo metadata
     const photoMetadataTable = new dynamodb.Table(this, 'PhotoMetadataTable', {
