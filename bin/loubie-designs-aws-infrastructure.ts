@@ -5,7 +5,9 @@ import { LoubieDesignsInfrastructureStack } from '../lib/loubie-designs-aws-infr
 
 const app = new cdk.App();
 
-new LoubieDesignsInfrastructureStack(app, 'LoubieDesignsInfrastructureStack', {
+const environment = app.node.tryGetContext('environment') || 'dev';
+
+new LoubieDesignsInfrastructureStack(app, `LoubieDesignsInfrastructureStack-${environment}`, {
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT,
     region: process.env.CDK_DEFAULT_REGION || 'us-west-2',
